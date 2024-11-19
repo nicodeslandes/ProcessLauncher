@@ -1,15 +1,22 @@
 ﻿using System.Diagnostics;
+using System.Net.WebSockets;
 
-void PrintThreadCount() => Console.WriteLine("Thread count: {0}", Process.GetCurrentProcess().Threads.Count);
+void Log(string message)
+{
+    Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffff} - {message}");
+}
 
-PrintThreadCount();
+void LogThreadCount() => Log($"Thread count: {Process.GetCurrentProcess().Threads.Count}");
+
+var sw = Stopwatch.StartNew();
+LogThreadCount();
 var tasks = Enumerable.Range(1, 25).Select(RunProcess);
 
-PrintThreadCount();
+LogThreadCount();
 Task.WaitAll(tasks);
 
-Console.WriteLine("All done!");
-PrintThreadCount();
+LogThreadCount();
+Log($"All done in {sw.Elapsed.TotalSeconds:N2}s!");
 
 Task RunProcess(int id)
 {
@@ -19,16 +26,16 @@ Task RunProcess(int id)
         RedirectStandardError = true,
     };
 
-    return Task.Run(() =>
+    return Task.Factory.StartNew(() =>
     {
         var process = new Process { StartInfo = startInfo };
-        Console.WriteLine("Starting process {0}", id);
+        Log($"Starting process {id}");
         process.Start();
-        Console.WriteLine("Process {0} started", id);
-        PrintThreadCount();
+        Log($"Process {id} started");
+        LogThreadCount();
         var output = process.StandardOutput.ReadToEnd();
-        Console.WriteLine("Process {0} output: {1}", id, output);
+        Log($"Process {id} output: {output}");
         var error = process.StandardError.ReadToEnd();
-        Console.WriteLine("Process {0} error: {1}", id, error);
-    });
+        Log($"Process {id} error: {error}");
+    }, TaskCreationOptions.LongRunning);
 }

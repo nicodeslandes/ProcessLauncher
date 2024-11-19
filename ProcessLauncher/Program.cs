@@ -3,7 +3,7 @@ using System.Net.WebSockets;
 
 void Log(string message) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffff} - {message}");
 void LogThreadCount() => Log($"Thread count: {Process.GetCurrentProcess().Threads.Count}");
-string CleanupOutput(string output) => output.Trim().Replace(Environment.NewLine, " ");
+string CleanupOutput(string output) => output.Trim().Replace("\r\n", " ").Replace("\n", " ");
 
 var sw = Stopwatch.StartNew();
 LogThreadCount();

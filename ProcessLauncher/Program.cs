@@ -1,12 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Net.WebSockets;
 
-void Log(string message)
-{
-    Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffff} - {message}");
-}
-
+void Log(string message) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffff} - {message}");
 void LogThreadCount() => Log($"Thread count: {Process.GetCurrentProcess().Threads.Count}");
+string CleanupOutput(string output) => output.Trim().Replace(Environment.NewLine, " ");
 
 var sw = Stopwatch.StartNew();
 LogThreadCount();
@@ -34,8 +31,8 @@ Task RunProcess(int id)
         Log($"Process {id} started");
         LogThreadCount();
         var output = process.StandardOutput.ReadToEnd();
-        Log($"Process {id} output: {output}");
+        Log($"Process {id} output: {CleanupOutput(output)}");
         var error = process.StandardError.ReadToEnd();
-        Log($"Process {id} error: {error}");
+        Log($"Process {id} error: {CleanupOutput(error)}");
     }, TaskCreationOptions.LongRunning);
 }

@@ -1,1 +1,0 @@
-[31;1mWrite-Error: [31;1mScript 123: error output[0m

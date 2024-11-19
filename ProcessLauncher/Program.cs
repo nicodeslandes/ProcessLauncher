@@ -99,7 +99,7 @@ Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
         process.WaitForExit();
 
         Log($"Process {id} output: {CleanupOutput(outputBuilder.ToString())}");
-    });
+    }, TaskCreationOptions.LongRunning);
 }
 
 Task StartOutputWriter(ChannelReader<(int id, string message)> reader)

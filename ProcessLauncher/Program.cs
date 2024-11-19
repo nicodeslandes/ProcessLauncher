@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Channels;
 
+const int Parallelism = 50;
+//ThreadPool.SetMaxThreads(5, 5);
+
 void Log(string message) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffffff} [{Thread.CurrentThread.ManagedThreadId,3}] - {message}");
 void LogThreadCount() => Log($"Thread count: {Process.GetCurrentProcess().Threads.Count}");
 string CleanupOutput(string output) => output.Trim().Replace("\r\n", " ").Replace("\n", " ");
@@ -46,7 +49,7 @@ LogThreadCount();
 var outputChannel = Channel.CreateUnbounded<(int id, string message)>();
 
 var writerTask = StartOutputWriter(outputChannel.Reader);
-var tasks = Enumerable.Range(1, 40).Select(i => RunProcess(i, outputChannel.Writer));
+var tasks = Enumerable.Range(1, Parallelism).Select(i => RunProcess(i, outputChannel.Writer));
 
 LogThreadCount();
 await Task.WhenAll(tasks);

@@ -10,9 +10,9 @@ var scriptId = args[0];
 Console.WriteLine($"Starting script {scriptId}");
 
 var sw = Stopwatch.StartNew();
-Thread.Sleep(1000);
+Thread.Sleep(3000);
 Console.WriteLine($"Script {scriptId}: error output");
-Thread.Sleep(1000);
+Thread.Sleep(3000);
 Console.WriteLine($"Terminating script {scriptId}");
-Thread.Sleep(1000);
+Thread.Sleep(3000);
 Console.WriteLine($"Elapsed time: {sw.Elapsed.TotalSeconds:N2}s");

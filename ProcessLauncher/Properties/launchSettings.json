@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ProcessLauncher": {
+      "commandName": "Project",
+      "workingDirectory": "C:\\Projects\\ProcessLauncher\\ProcessLauncher"
+    }
+  }
+}

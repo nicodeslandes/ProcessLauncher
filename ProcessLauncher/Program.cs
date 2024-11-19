@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Channels;
 
+const int Parallelism = 40;
+
 void Log(string message) => Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.ffffff} [{Thread.CurrentThread.ManagedThreadId,3}] - {message}");
 void LogThreadCount() => Log($"Thread count: {Process.GetCurrentProcess().Threads.Count}");
 string CleanupOutput(string output) => output.Trim().Replace("\r\n", " ").Replace("\n", " ");
@@ -20,6 +22,23 @@ string GetExecutablePath()
     }
 
     throw new Exception("Unknown OS Platform");
+}
+
+// Move to the first parent folder named "ProcessLauncher"
+while (true)
+{
+    var currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
+    if (currentDirectory.Name == "ProcessLauncher")
+    {
+        break;
+    }
+
+    if (currentDirectory.Parent is null)
+    {
+        throw new Exception("Failed to locate ProcessLauncher directory");
+    }
+
+    Directory.SetCurrentDirectory(currentDirectory.Parent.FullName);
 }
 
 var path = GetExecutablePath();
@@ -46,7 +65,7 @@ LogThreadCount();
 var outputChannel = Channel.CreateUnbounded<(int id, string message)>();
 
 var writerTask = StartOutputWriter(outputChannel.Reader);
-var tasks = Enumerable.Range(1, 40).Select(i => RunProcess(i, outputChannel.Writer));
+var tasks = Enumerable.Range(1, Parallelism).Select(i => RunProcess(i, outputChannel.Writer));
 
 LogThreadCount();
 await Task.WhenAll(tasks);
@@ -66,7 +85,7 @@ Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
         RedirectStandardError = true,
     };
 
-    return Task.Factory.StartNew(() =>
+    return Task.Run(async () =>
     {
         var process = new Process { StartInfo = startInfo };
 
@@ -76,27 +95,34 @@ Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
 
         var outputBuilder = new StringBuilder(16384);
 
-        async void HandleStreamOutput(object sender, DataReceivedEventArgs e)
+        Task ReadStreamMessages(StreamReader stream)
         {
-            lock (outputBuilder)
+            return Task.Run(async () =>
             {
-                outputBuilder.AppendLine(e.Data);
-            }
-            await writer.WriteAsync((id, e.Data ?? ""));
+                while (true)
+                {
+                    var line = await stream.ReadLineAsync();
+                    if (line == null)
+                    {
+                        break;
+                    }
 
+                    lock (outputBuilder)
+                    {
+                        outputBuilder.Append(line);
+                    }
+                    await writer.WriteAsync((id, line));
+                }
+            });
         }
 
-        process.OutputDataReceived += HandleStreamOutput;
-        process.ErrorDataReceived += HandleStreamOutput;
+        var outputTask = ReadStreamMessages(process.StandardOutput);
+        var errorTask = ReadStreamMessages(process.StandardError);
 
+        Log($"Started read message loops for stdout/stderr for process {id}");
         LogThreadCount();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
 
-        Log($"Process {id} BeginOutput/ErrorReadLine called");
-
-        LogThreadCount();
-        process.WaitForExit();
+        await Task.WhenAll(process.WaitForExitAsync(), outputTask, errorTask);
 
         Log($"Process {id} output: {CleanupOutput(outputBuilder.ToString())}");
     });

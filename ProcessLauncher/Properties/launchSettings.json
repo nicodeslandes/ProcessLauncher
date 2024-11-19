@@ -1,8 +1,11 @@
 {
   "profiles": {
     "ProcessLauncher": {
-      "commandName": "Project",
-      "workingDirectory": "C:\\Projects\\ProcessLauncher\\ProcessLauncher"
+      "commandName": "Project"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
     }
   }
 }

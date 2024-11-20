@@ -77,7 +77,7 @@ LogThreadCount();
 Log($"All done in {sw.Elapsed.TotalSeconds:N2}s!");
 return 0;
 
-Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
+async Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
 {
     var startInfo = new ProcessStartInfo(path, id.ToString())
     {
@@ -85,47 +85,53 @@ Task RunProcess(int id, ChannelWriter<(int id, string message)> writer)
         RedirectStandardError = true,
     };
 
-    return Task.Run(async () =>
+    Task<Process> StartProcess()
     {
-        var process = new Process { StartInfo = startInfo };
-
-        Log($"Starting process {id}");
-        process.Start();
-        Log($"Process {id} started");
-
-        var outputBuilder = new StringBuilder(16384);
-
-        Task ReadStreamMessages(StreamReader stream)
+        return Task.Factory.StartNew(() =>
         {
-            return Task.Run(async () =>
+            var process = new Process { StartInfo = startInfo };
+
+            Log($"Starting process {id}");
+            process.Start();
+            Log($"Process {id} started");
+            return process;
+        }, TaskCreationOptions.LongRunning);
+    }
+
+    var process = await StartProcess();
+
+    var outputBuilder = new StringBuilder(16384);
+
+    Task ReadStreamMessages(StreamReader stream)
+    {
+        return Task.Run(async () =>
+        {
+            while (true)
             {
-                while (true)
+                var line = await stream.ReadLineAsync();
+                if (line == null)
                 {
-                    var line = await stream.ReadLineAsync();
-                    if (line == null)
-                    {
-                        break;
-                    }
-
-                    lock (outputBuilder)
-                    {
-                        outputBuilder.Append(line);
-                    }
-                    await writer.WriteAsync((id, line));
+                    break;
                 }
-            });
-        }
 
-        var outputTask = ReadStreamMessages(process.StandardOutput);
-        var errorTask = ReadStreamMessages(process.StandardError);
+                lock (outputBuilder)
+                {
+                    outputBuilder.Append(line);
+                }
+                await writer.WriteAsync((id, line));
+            }
+        });
+    }
 
-        Log($"Started read message loops for stdout/stderr for process {id}");
-        LogThreadCount();
+    var outputTask = ReadStreamMessages(process.StandardOutput);
+    var errorTask = ReadStreamMessages(process.StandardError);
 
-        await Task.WhenAll(process.WaitForExitAsync(), outputTask, errorTask);
+    Log($"Started read message loops for stdout/stderr for process {id}");
+    LogThreadCount();
 
-        Log($"Process {id} output: {CleanupOutput(outputBuilder.ToString())}");
-    });
+    await Task.WhenAll(process.WaitForExitAsync(), outputTask, errorTask);
+
+    Log($"Process {id} output: {CleanupOutput(outputBuilder.ToString())}");
 }
 
 Task StartOutputWriter(ChannelReader<(int id, string message)> reader)

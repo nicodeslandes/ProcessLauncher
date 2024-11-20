@@ -11,7 +11,7 @@ Console.WriteLine($"Starting script {scriptId}");
 
 var sw = Stopwatch.StartNew();
 Thread.Sleep(3000);
-Console.WriteLine($"Script {scriptId}: error output");
+Console.Error.WriteLine($"Script {scriptId}: error output");
 Thread.Sleep(3000);
 Console.WriteLine($"Terminating script {scriptId}");
 Thread.Sleep(3000);

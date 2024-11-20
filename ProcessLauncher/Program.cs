@@ -71,28 +71,43 @@ public class Program
             process.Start();
             Log($"Process {id} started");
 
-            process.OutputDataReceived += HandleStreamOutput;
-            process.ErrorDataReceived += HandleStreamOutput;
-
             LogThreadCount();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+
+            var errorTask = Task.Factory.StartNew(() => ReadProcessStreamSynchronously(process.StandardError), TaskCreationOptions.LongRunning);
+
+            Log($"Process {id}: Starting stdout read loop");
+            LogThreadCount();
+
+            ReadProcessStreamSynchronously(process.StandardOutput);
 
             Log($"Process {id} BeginOutput/ErrorReadLine called");
 
             LogThreadCount();
             process.WaitForExit();
+            errorTask.Wait();
 
             Log($"Process {id} output: {CleanupOutput(_outputBuilder.ToString())}");
         }
 
-        private async void HandleStreamOutput(object sender, DataReceivedEventArgs e)
+        private void ReadProcessStreamSynchronously(StreamReader stream)
+        {
+            while (true)
+            {
+                var line = stream.ReadLine();
+                if (line == null)
+                    break;
+
+                HandleStreamOutput(line);
+            }
+        }
+
+        private async void HandleStreamOutput(string line)
         {
             lock (_outputBuilder)
             {
-                _outputBuilder.AppendLine(e.Data);
+                _outputBuilder.AppendLine(line);
             }
-            await writer.WriteAsync((id, e.Data ?? ""));
+            await writer.WriteAsync((id, line));
 
         }
     }
